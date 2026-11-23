@@ -1,7 +1,10 @@
 import { Link, NavLink } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthContext'
 import { appConfig } from '../../config/appConfig'
 
 export function StoreHeader() {
+  const { role } = useAuth()
+
   return (
     <header className="store-header">
       <div className="store-header__inner">
@@ -17,7 +20,9 @@ export function StoreHeader() {
           <NavLink to="/carrinho">Carrinho</NavLink>
           <NavLink to="/conta">Minha conta</NavLink>
         </nav>
-        <Link className="admin-link" to="/admin">Área administrativa</Link>
+        {role === 'admin' && (
+          <Link className="admin-link" to="/admin">Área administrativa</Link>
+        )}
       </div>
     </header>
   )

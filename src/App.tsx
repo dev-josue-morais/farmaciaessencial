@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AdminPlaceholderPage } from './pages/admin/AdminPlaceholderPage'
-import { AdminLayout } from './pages/admin/AdminLayout'
+import { RequireAdmin } from './components/admin/RequireAdmin'
 import { DashboardPage } from './pages/admin/DashboardPage'
 import { AccountPage } from './pages/store/AccountPage'
 import { CartPage } from './pages/store/CartPage'
@@ -14,7 +14,7 @@ export default function App() {
       <Route path="/produtos" element={<CatalogPage />} />
       <Route path="/carrinho" element={<CartPage />} />
       <Route path="/conta" element={<AccountPage />} />
-      <Route path="/admin" element={<AdminLayout />}>
+      <Route path="/admin" element={<RequireAdmin />}>
         <Route index element={<DashboardPage />} />
         <Route
           path="produtos"

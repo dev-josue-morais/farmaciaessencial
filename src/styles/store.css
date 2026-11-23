@@ -59,6 +59,11 @@
 .account-card input { height: 48px; border: 1px solid var(--line); border-radius: 9px; padding: 0 12px; }
 .account-card button { height: 48px; border: 0; border-radius: 9px; background: var(--green-700); color: white; font-weight: 800; }
 .account-card button.secondary { background: var(--green-100); color: var(--green-900); }
+.account-card button:disabled { opacity: .6; cursor: not-allowed; }
+.account-card h2 { margin: 0; }
+.account-message, .auth-status { line-height: 1.5; }
+.account-message--error { color: #a12622; background: #fff0ef; border-radius: 8px; padding: 10px; }
+.account-message--success { color: var(--green-900); background: var(--green-100); border-radius: 8px; padding: 10px; }
 .configuration-note { color: #94610a; background: #fff8e8; border-radius: 8px; padding: 10px; font-size: 13px; }
 .store-footer { min-height: 120px; background: var(--green-900); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; }
 @media (max-width: 900px) {
