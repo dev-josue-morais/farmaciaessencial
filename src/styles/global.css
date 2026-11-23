@@ -1,0 +1,22 @@
+:root {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: #17372c;
+  background: #f7faf8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --green-900: #075e46;
+  --green-700: #087f5b;
+  --green-500: #20b486;
+  --green-100: #e7f6ef;
+  --ink: #17372c;
+  --muted: #6c8178;
+  --line: #dde8e2;
+  --white: #ffffff;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input { font: inherit; }
+button, a { cursor: pointer; }
+a { color: inherit; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid rgba(32, 180, 134, .28); outline-offset: 2px; }

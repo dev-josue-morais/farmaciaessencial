@@ -1,0 +1,1 @@
+-- Execute sql/002_storage.sql no SQL Editor.
