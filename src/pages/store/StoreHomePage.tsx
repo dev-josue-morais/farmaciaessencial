@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StoreHeader } from '../../components/store/StoreHeader'
 import { ProductCard } from '../../components/store/ProductCard'
+import { appConfig } from '../../config/appConfig'
 import { categories, products } from '../../services/catalogService'
 import type { Product } from '../../types'
 
