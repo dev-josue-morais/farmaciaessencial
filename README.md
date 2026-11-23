@@ -45,7 +45,7 @@ As páginas usam `HashRouter`, portanto funcionam no endereço padrão do GitHub
 1. Crie um projeto no Supabase.
 2. Execute `supabase/migrations/20261122000001_initial_schema.sql` no SQL Editor.
 3. Configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` em `.env.local`.
-4. Para o GitHub Actions, cadastre os mesmos valores como **repository variables** com os nomes `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
+4. Para o GitHub Actions, cadastre os mesmos valores como **repository variables** ou como variáveis do ambiente `github-pages`, com os nomes `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
 5. Execute o disparo manual ou faça push na branch `main`.
 6. Em Supabase, crie o bucket `product-images` e configure limite de tamanho e tipos permitidos.
 
