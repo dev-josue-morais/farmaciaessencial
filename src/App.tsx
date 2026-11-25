@@ -6,6 +6,8 @@ import { AccountPage } from './pages/store/AccountPage'
 import { CartPage } from './pages/store/CartPage'
 import { CatalogPage } from './pages/store/CatalogPage'
 import { StoreHomePage } from './pages/store/StoreHomePage'
+import { PharmacistPage } from './pages/admin/PharmacistPage'
+import { AdminProductsPage } from './pages/admin/AdminProductsPage'
 
 export default function App() {
   return (
@@ -14,18 +16,12 @@ export default function App() {
       <Route path="/produtos" element={<CatalogPage />} />
       <Route path="/carrinho" element={<CartPage />} />
       <Route path="/conta" element={<AccountPage />} />
+      <Route path="/farmaceutico" element={<PharmacistPage />} />
       <Route path="/admin" element={<RequireAdmin />}>
         <Route index element={<DashboardPage />} />
         <Route
           path="produtos"
-          element={
-            <AdminPlaceholderPage
-              title="Produtos"
-              description="Cadastro de medicamentos e outros produtos, fotos, estoque, preços, promoções e regras de venda."
-              action="Novo produto"
-              fields={['Produto', 'Código', 'Categoria', 'Estoque', 'Preço', 'Status']}
-            />
-          }
+          element={<AdminProductsPage />}
         />
         <Route
           path="categorias"

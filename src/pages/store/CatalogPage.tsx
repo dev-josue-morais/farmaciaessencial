@@ -1,23 +1,47 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { StoreHeader } from '../../components/store/StoreHeader'
 import { ProductCard } from '../../components/store/ProductCard'
-import { categories, products } from '../../services/catalogService'
-import type { Product } from '../../types'
+import { getCatalog } from '../../services/catalogService'
+import type { Category, Product } from '../../types'
 
 export function CatalogPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
+  const [categories, setCategories] = useState<Category[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    getCatalog()
+      .then((catalog) => {
+        if (!active) return
+        setCategories(catalog.categories)
+        setProducts(catalog.products)
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar o catálogo.')
+      })
+      .finally(() => active && setLoading(false))
+    return () => { active = false }
+  }, [])
+
+  function normalize(value: string) {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
+  }
 
   const catalog = useMemo(() => products.filter((product) => {
-    const matchesName = product.name.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR'))
+    const matchesName = normalize(product.name).includes(normalize(search))
     const matchesCategory = category === 'all' || product.categoryId === category
     return matchesName && matchesCategory
-  }), [category, search])
+  }), [category, search, products])
 
   function addToCart(product: Product) {
     const cart = JSON.parse(localStorage.getItem('fe-cart') ?? '[]') as { productId: string; quantity: number }[]
     const existing = cart.find((item) => item.productId === product.id)
-    existing ? existing.quantity += 1 : cart.push({ productId: product.id, quantity: 1 })
+    if (existing) existing.quantity += 1
+    else cart.push({ productId: product.id, quantity: 1 })
     localStorage.setItem('fe-cart', JSON.stringify(cart))
   }
 
@@ -51,6 +75,9 @@ export function CatalogPage() {
             ))}
           </aside>
           <div className="product-grid">
+            {loading && <p>Carregando produtos...</p>}
+            {error && <p className="account-message account-message--error" role="alert">{error}</p>}
+            {!loading && !error && catalog.length === 0 && <p>Nenhum produto encontrado.</p>}
             {catalog.map((product) => (
               <ProductCard key={product.id} product={product} onAdd={addToCart} />
             ))}

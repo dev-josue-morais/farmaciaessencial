@@ -1,74 +1,41 @@
 import type { Category, Product } from '../types'
+import { supabase } from './supabase'
 
-// Demo data is intentionally local and will be replaced by Supabase queries.
-// No credentials or external service data are included in this repository.
-export const categories: Category[] = [
-  { id: 'medicamentos', name: 'Medicamentos', slug: 'medicamentos', active: true, sortOrder: 1 },
-  { id: 'higiene', name: 'Higiene', slug: 'higiene', active: true, sortOrder: 2 },
-  { id: 'bebes', name: 'Mamãe & bebê', slug: 'bebes', active: true, sortOrder: 3 },
-  { id: 'vitaminas', name: 'Vitaminas', slug: 'vitaminas', active: true, sortOrder: 4 },
-]
+export async function getCatalog(): Promise<{ categories: Category[]; products: Product[] }> {
+  if (!supabase) return { categories: [], products: [] }
 
-export const products: Product[] = [
-  {
-    id: '1',
-    name: 'Vitamina C 500mg',
-    description: 'Suplemento vitamínico para consumo conforme orientação profissional.',
-    price: 32.9,
-    promotionalPrice: 27.9,
-    categoryId: 'vitaminas',
-    code: 'FE-0001',
-    stock: 24,
-    imageUrl: '',
-    gallery: [],
-    status: 'active',
-    featured: true,
-    requiresPrescription: false,
-    controlled: false,
-  },
-  {
-    id: '2',
-    name: 'Protetor Solar FPS 60',
-    description: 'Proteção diária para todos os tipos de pele.',
-    price: 49.9,
-    categoryId: 'higiene',
-    code: 'FE-0002',
-    stock: 18,
-    imageUrl: '',
-    gallery: [],
-    status: 'active',
-    featured: true,
-    requiresPrescription: false,
-    controlled: false,
-  },
-  {
-    id: '3',
-    name: 'Álcool 70% 500ml',
-    description: 'Produto de higiene para limpeza de mãos e superfícies.',
-    price: 12.5,
-    categoryId: 'higiene',
-    code: 'FE-0003',
-    stock: 40,
-    imageUrl: '',
-    gallery: [],
-    status: 'active',
-    featured: true,
-    requiresPrescription: false,
-    controlled: false,
-  },
-  {
-    id: '4',
-    name: 'Kit higiênico infantil',
-    description: 'Conjunto de cuidados para o dia a dia do bebê.',
-    price: 39.9,
-    categoryId: 'bebes',
-    code: 'FE-0004',
-    stock: 12,
-    imageUrl: '',
-    gallery: [],
-    status: 'active',
-    featured: false,
-    requiresPrescription: false,
-    controlled: false,
-  },
-]
+  const [{ data: categoryRows, error: categoryError }, { data: productRows, error: productError }] =
+    await Promise.all([
+      supabase.from('categories').select('*').eq('active', true).order('sort_order'),
+      supabase.from('products').select('*').eq('status', 'active').order('name'),
+    ])
+
+  if (categoryError) throw categoryError
+  if (productError) throw productError
+
+  return {
+    categories: (categoryRows ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      active: row.active,
+      sortOrder: row.sort_order,
+    })),
+    products: (productRows ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      price: Number(row.price),
+      promotionalPrice: row.promotional_price == null ? undefined : Number(row.promotional_price),
+      categoryId: row.category_id,
+      code: row.code,
+      stock: row.stock,
+      imageUrl: row.image_url ?? '',
+      gallery: row.gallery ?? [],
+      status: row.status,
+      featured: row.featured,
+      requiresPrescription: row.requires_prescription,
+      controlled: row.controlled,
+    })),
+  }
+}

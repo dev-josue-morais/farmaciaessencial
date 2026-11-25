@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { StoreHeader } from '../../components/store/StoreHeader'
@@ -15,6 +15,22 @@ export function AccountPage() {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [phone, setPhone] = useState('')
+  const [addresses, setAddresses] = useState<Array<{ id: string; recipient_name: string; postal_code: string; street: string; number: string }>>([])
+  const [neighborhoods, setNeighborhoods] = useState<Array<{ id: string; name: string }>>([])
+  const [addressForm, setAddressForm] = useState({
+    recipientName: '', postalCode: '', street: '', number: '', complement: '', neighborhoodId: '', referencePoint: '',
+  })
+
+  useEffect(() => {
+    if (!supabase || !user) return
+    void supabase.from('profiles').select('phone').eq('id', user.id).maybeSingle()
+      .then(({ data }) => setPhone((data?.phone as string) ?? ''))
+    void supabase.from('addresses').select('id, recipient_name, postal_code, street, number').eq('user_id', user.id)
+      .then(({ data }) => setAddresses((data ?? []) as typeof addresses))
+    void supabase.from('neighborhoods').select('id, name').eq('available', true).order('name')
+      .then(({ data }) => setNeighborhoods((data ?? []) as typeof neighborhoods))
+  }, [user?.id])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -85,6 +101,70 @@ export function AccountPage() {
     setError(null)
   }
 
+  async function resetPassword() {
+    if (!supabase || !email.trim()) {
+      setError('Informe seu e-mail para recuperar a senha.')
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    setMessage(null)
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/conta`,
+    })
+    setSubmitting(false)
+    if (resetError) setError(resetError.message)
+    else setMessage('Enviamos um link de recuperação para seu e-mail.')
+  }
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!supabase || !user) return
+    const { error: updateError } = await supabase.from('profiles').update({
+      full_name: fullName.trim() || displayName,
+      phone: phone.trim(),
+    }).eq('id', user.id)
+    if (updateError) setError(updateError.message)
+    else setMessage('Dados cadastrais atualizados.')
+  }
+
+  async function saveAddress(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!supabase || !user) return
+    if (!addressForm.neighborhoodId) {
+      setError('Selecione o bairro.')
+      return
+    }
+    const { error: addressError } = await supabase.from('addresses').insert({
+      user_id: user.id,
+      recipient_name: addressForm.recipientName.trim(),
+      postal_code: addressForm.postalCode.trim(),
+      street: addressForm.street.trim(),
+      number: addressForm.number.trim(),
+      complement: addressForm.complement.trim() || null,
+      neighborhood_id: addressForm.neighborhoodId,
+      reference_point: addressForm.referencePoint.trim() || null,
+    })
+    if (addressError) {
+      setError(addressError.message)
+      return
+    }
+    setAddressForm({ recipientName: '', postalCode: '', street: '', number: '', complement: '', neighborhoodId: '', referencePoint: '' })
+    setMessage('Endereço cadastrado.')
+    const { data } = await supabase.from('addresses').select('id, recipient_name, postal_code, street, number').eq('user_id', user.id)
+    setAddresses((data ?? []) as typeof addresses)
+  }
+
+  async function removeAddress(addressId: string) {
+    if (!supabase) return
+    const { error: deleteError } = await supabase.from('addresses').delete().eq('id', addressId)
+    if (deleteError) setError(deleteError.message)
+    else {
+      setAddresses((items) => items.filter((item) => item.id !== addressId))
+      setMessage('Endereço excluído.')
+    }
+  }
+
   const displayName = user?.user_metadata.full_name
 
   return (
@@ -107,8 +187,37 @@ export function AccountPage() {
             <p>{typeof displayName === 'string' ? displayName : user.email}</p>
             {authError && <p className="account-message account-message--error" role="alert">{authError}</p>}
             {role === 'admin' && <Link to="/admin">Abrir painel administrativo</Link>}
+            {role === 'pharmacist' && <Link to="/farmaceutico">Abrir painel operacional</Link>}
             {message && <p className="account-message account-message--success" role="status">{message}</p>}
             {error && <p className="account-message account-message--error" role="alert">{error}</p>}
+            <form onSubmit={saveProfile}>
+              <label>
+                Nome completo
+                <input value={typeof displayName === 'string' ? displayName : ''} onChange={(event) => setFullName(event.target.value)} />
+              </label>
+              <label>
+                Telefone
+                <input value={phone} onChange={(event) => setPhone(event.target.value)} />
+              </label>
+              <button type="submit">Salvar dados</button>
+            </form>
+            <h3>Endereços</h3>
+            {addresses.map((item) => (
+              <div className="address-row" key={item.id}>
+                <span>{item.recipient_name} - {item.street}, {item.number}</span>
+                <button type="button" className="secondary" onClick={() => removeAddress(item.id)}>Excluir</button>
+              </div>
+            ))}
+            <form onSubmit={saveAddress}>
+              <label>Destinatário<input required value={addressForm.recipientName} onChange={(event) => setAddressForm({ ...addressForm, recipientName: event.target.value })} /></label>
+              <label>CEP<input required value={addressForm.postalCode} onChange={(event) => setAddressForm({ ...addressForm, postalCode: event.target.value })} /></label>
+              <label>Rua<input required value={addressForm.street} onChange={(event) => setAddressForm({ ...addressForm, street: event.target.value })} /></label>
+              <label>Número<input required value={addressForm.number} onChange={(event) => setAddressForm({ ...addressForm, number: event.target.value })} /></label>
+              <label>Complemento<input value={addressForm.complement} onChange={(event) => setAddressForm({ ...addressForm, complement: event.target.value })} /></label>
+              <label>Bairro<select required value={addressForm.neighborhoodId} onChange={(event) => setAddressForm({ ...addressForm, neighborhoodId: event.target.value })}><option value="">Selecione</option>{neighborhoods.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <label>Ponto de referência<input value={addressForm.referencePoint} onChange={(event) => setAddressForm({ ...addressForm, referencePoint: event.target.value })} /></label>
+              <button type="submit">Cadastrar endereço</button>
+            </form>
             <button type="button" onClick={handleSignOut} disabled={submitting}>
               Sair da conta
             </button>
@@ -165,6 +274,11 @@ export function AccountPage() {
             >
               {mode === 'signUp' ? 'Já tenho uma conta' : 'Criar conta'}
             </button>
+            {mode === 'signIn' && (
+              <button type="button" className="secondary" onClick={resetPassword} disabled={!isSupabaseConfigured || submitting}>
+                Esqueci minha senha
+              </button>
+            )}
             {message && <p className="account-message account-message--success" role="status">{message}</p>}
             {error && <p className="account-message account-message--error" role="alert">{error}</p>}
             {authError && <p className="account-message account-message--error" role="alert">{authError}</p>}

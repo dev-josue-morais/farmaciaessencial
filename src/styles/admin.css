@@ -31,6 +31,9 @@
 .admin-table__head { min-height: 46px; background: #f7faf8; display: grid; grid-template-columns: repeat(6, 1fr); align-items: center; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #71847b; }
 .admin-table__head span { padding: 0 12px; }
 .admin-table__empty { min-height: 140px; display: grid; place-items: center; color: var(--muted); }
+.admin-table__row { min-height: 56px; display: grid; grid-template-columns: repeat(6, 1fr); align-items: center; border-top: 1px solid #e4ebe7; }
+.admin-table__row span, .admin-table__row button { padding: 8px 12px; }
+.admin-table__row button { border: 0; background: var(--green-100); color: var(--green-900); border-radius: 8px; margin: 6px; font-weight: 800; }
 @media (max-width: 900px) {
   .admin-layout { grid-template-columns: 78px 1fr; }
   .admin-sidebar { padding: 14px 8px; }

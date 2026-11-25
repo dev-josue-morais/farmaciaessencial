@@ -13,7 +13,7 @@ Base inicial da plataforma de vendas da Farmácia Essencial. O repositório cont
 - `sql`: scripts para configurar schema, Storage e verificar o Supabase.
 - `supabase/migrations`: estrutura PostgreSQL e políticas RLS.
 - `android`: projeto independente Android/Kotlin.
-- `.github/workflows/deploy.yml`: publicação no GitHub Pages.
+- `render.yaml`: configuração de implantação no Render.
 
 ## Requisitos
 
@@ -38,16 +38,16 @@ npm run build
 npm run preview
 ```
 
-As páginas usam `HashRouter`, portanto funcionam no endereço padrão do GitHub Pages sem configurar regras adicionais de rewrites.
+O frontend usa `BrowserRouter`; o servidor Node encaminha rotas desconhecidas ao `index.html`.
 
 ## Configuração do Supabase
 
 1. Crie um projeto no Supabase.
 2. Execute `supabase/migrations/20261122000001_initial_schema.sql` no SQL Editor.
 3. Configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` em `.env.local`.
-4. Para o GitHub Actions, cadastre os mesmos valores como **repository variables** ou como variáveis do ambiente `github-pages`, com os nomes `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
-5. Execute o disparo manual ou faça push na branch `main`.
-6. Em Supabase, crie o bucket `product-images` e configure limite de tamanho e tipos permitidos.
+4. Configure as mesmas variáveis públicas no Render.
+5. Execute as migrações do Supabase, incluindo a migração de checkout e estoque.
+6. Em Supabase, crie o bucket `product-images` e mantenha limite de tamanho e tipos permitidos.
 
 Nunca coloque a `service_role key` ou credenciais de Mercado Pago no frontend.
 
@@ -73,16 +73,6 @@ Mercado Pago ainda não está integrado. Antes da ativação é necessário:
 
 Não considerar a tela de retorno do navegador como aprovação.
 
-## GitHub Pages
-
-No repositório do GitHub:
-
-1. Acesse **Settings > Pages**.
-2. Selecione **GitHub Actions** como fonte.
-3. Configure as variáveis públicas indicadas acima.
-4. Faça push na branch `main`.
-
-O workflow gera `dist` e publica o artefato. Um domínio personalizado pode ser configurado posteriormente; atualize a configuração base e a URL do Android quando necessário.
 
 ## Aplicativo Android
 
@@ -94,27 +84,38 @@ O workflow gera `dist` e publica o artefato. Um domínio personalizado pode ser 
 
 Links externos são encaminhados para outro aplicativo controlado. A navegação interna é restrita ao host autorizado.
 
-## Estado desta base
+## Render
 
-Implementado:
+O projeto inclui `render.yaml` e um servidor Node embutido que serve `dist` e expõe `GET /health`.
 
-- loja pública navegável;
-- catálogo com filtro e busca;
-- carrinho armazenado localmente;
-- páginas de conta e checkout em preparação;
-- painel administrativo inicial;
-- identidade visual responsiva;
-- configuração Supabase opcional;
-- esquema PostgreSQL e RLS inicial;
-- workflow GitHub Pages;
-- projeto Android com WebView, offline, carregamento, atualização e bloqueio externo.
+1. Crie um Web Service no Render conectado ao repositório.
+2. Use o Blueprint `render.yaml`.
+3. Configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
+4. Configure as migrações do Supabase, incluindo `20261122000002_checkout_and_inventory.sql`.
+5. O domínio gratuito ou personalizado deve usar HTTPS.
 
-Ainda exige configuração externa:
+O Render não recebe credenciais privadas. Mercado Pago e `SUPABASE_SERVICE_ROLE_KEY` devem permanecer fora do frontend.
 
-- URL e chave pública do Supabase;
-- dados reais e storage;
-- políticas administrativas adicionais do primeiro usuário;
-- credenciais e integração Mercado Pago;
-- Edge Functions de checkout e webhook;
-- domínio oficial para o Android;
-- validação de medicamentos sujeitos a receita/controlados.
+## Estado atual
+
+Implementado no código:
+
+- catálogo e loja carregados do Supabase;
+- busca normalizada com acentuação;
+- carrinho persistente com revalidação de estoque e preço no banco;
+- autenticação, perfil e endereços;
+- criação de pedido por função PostgreSQL transacional e idempotente;
+- baixa e reversão de estoque;
+- painel administrativo protegido e dashboard com dados reais;
+- painel operacional para farmacêutico;
+- servidor Render e `/health`;
+- projeto Android em WebView.
+
+Pendente por configuração externa:
+
+- URL, chave pública e dados reais do Supabase;
+- atribuição do primeiro usuário administrativo;
+- Storage e imagens;
+- credenciais Mercado Pago;
+- Edge Function de criação de cobrança e webhook autenticado;
+- domínio oficial e configuração final do Android.

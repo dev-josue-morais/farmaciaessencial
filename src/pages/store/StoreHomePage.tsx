@@ -1,17 +1,40 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StoreHeader } from '../../components/store/StoreHeader'
 import { ProductCard } from '../../components/store/ProductCard'
 import { appConfig } from '../../config/appConfig'
-import { categories, products } from '../../services/catalogService'
+import { getCatalog } from '../../services/catalogService'
 import type { Product } from '../../types'
+
+type Category = { id: string; name: string; slug: string; active: boolean; sortOrder: number }
 
 export function StoreHomePage() {
   const [search, setSearch] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filtered = products.filter((product) =>
-    product.name.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')),
-  )
+  useEffect(() => {
+    let active = true
+    getCatalog()
+      .then((catalog) => {
+        if (!active) return
+        setCategories(catalog.categories)
+        setProducts(catalog.products)
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar a loja.')
+      })
+      .finally(() => active && setLoading(false))
+    return () => { active = false }
+  }, [])
+
+  function normalize(value: string) {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
+  }
+
+  const filtered = products.filter((product) => normalize(product.name).includes(normalize(search)))
 
   function addToCart(product: Product) {
     const stored = localStorage.getItem('fe-cart')
@@ -71,6 +94,8 @@ export function StoreHomePage() {
             </div>
           </div>
           <div className="product-grid">
+            {loading && <p>Carregando produtos...</p>}
+            {error && <p className="account-message account-message--error" role="alert">{error}</p>}
             {filtered.filter((product) => product.featured).map((product) => (
               <ProductCard key={product.id} product={product} onAdd={addToCart} />
             ))}
