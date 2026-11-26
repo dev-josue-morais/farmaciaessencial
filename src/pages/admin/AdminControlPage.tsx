@@ -100,7 +100,7 @@ export function AdminControlPage({ module }: Props) {
   const [payments, setPayments] = useState<Array<Record<string, unknown>>>([])
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodRow[]>([])
   const [providerSettings, setProviderSettings] = useState<PaymentProviderRow[]>([])
-  const [credentialProvider, setCredentialProvider] = useState('mercado_pago')
+  const [activeProvider, setActiveProvider] = useState('')
   const [credentialForm, setCredentialForm] = useState({
     api_token: '',
     client_id: '',
@@ -176,10 +176,12 @@ export function AdminControlPage({ module }: Props) {
         { data: methodData, error: methodError },
         { data: providerData, error: providerError },
         { data: paymentData, error: paymentError },
+        { data: storeSettings, error: storeSettingsError },
       ] = await Promise.all([
         supabase.from('payment_method_settings').select('*').order('method'),
         supabase.from('payment_provider_settings').select('*').order('provider'),
         supabase.from('payments').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('store_settings').select('active_payment_provider').eq('id', true).maybeSingle(),
       ])
       if (methodError) setError(methodError.message)
       else setPaymentMethods((methodData ?? []) as PaymentMethodRow[])
@@ -187,6 +189,8 @@ export function AdminControlPage({ module }: Props) {
       else setProviderSettings((providerData ?? []) as PaymentProviderRow[])
       if (paymentError) setError(paymentError.message)
       else setPayments((paymentData ?? []) as Array<Record<string, unknown>>)
+      if (storeSettingsError) setError(storeSettingsError.message)
+      else setActiveProvider(storeSettings?.active_payment_provider ?? '')
     }
   }, [module])
 
@@ -369,19 +373,27 @@ export function AdminControlPage({ module }: Props) {
       return {
         method,
         enabled: item?.enabled ?? false,
-        provider: item?.provider ?? null,
+        provider: activeProvider || null,
         adjustment_type: item?.adjustment_type ?? 'none',
         adjustment_unit: item?.adjustment_unit ?? 'fixed',
         adjustment_value: item?.adjustment_type === 'none' ? 0 : Number(item?.adjustment_value ?? 0),
         updated_at: new Date().toISOString(),
       }
     })
-    if (rows.some((item) => item.enabled && !item.provider)) {
-      setError('Selecione um provedor para cada forma de pagamento habilitada.')
+    if (rows.some((item) => item.enabled && !activeProvider)) {
+      setError('Selecione um provedor ativo antes de habilitar Pix ou cartão.')
       return
     }
     if (rows.some((item) => item.adjustment_value < 0 || (item.adjustment_unit === 'percent' && item.adjustment_value > 100))) {
       setError('O percentual deve estar entre 0 e 100; valores fixos não podem ser negativos.')
+      return
+    }
+    const { error: selectionError } = await supabase.from('store_settings').update({
+      active_payment_provider: activeProvider || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', true)
+    if (selectionError) {
+      setError(selectionError.message)
       return
     }
     const { error: saveError } = await supabase.from('payment_method_settings').upsert(rows, { onConflict: 'method' })
@@ -407,25 +419,48 @@ export function AdminControlPage({ module }: Props) {
     })
   }
 
-  async function saveProviderSettings(provider: string) {
+  async function saveProviderSettings() {
     if (!supabase) return
-    const item = providerSettings.find((entry) => entry.provider === provider)
-    if (!item) return
+    if (!activeProvider) {
+      setError('Selecione o provedor que será usado.')
+      return
+    }
+    const item = providerSettings.find((entry) => entry.provider === activeProvider)
+    if (!item) {
+      setError('Aplique a migration de configuração de pagamentos para carregar os provedores.')
+      return
+    }
     const { data, error: saveError } = await supabase.from('payment_provider_settings').update({
       environment: item.environment,
       account_reference: item.account_reference?.trim() || null,
       updated_at: new Date().toISOString(),
-    }).eq('provider', provider).select('provider').maybeSingle()
+    }).eq('provider', activeProvider).select('provider').maybeSingle()
     if (saveError) setError(saveError.message)
     else if (!data) setError('Provedor não encontrado. Aplique a migration de configuração de pagamentos.')
-    else setMessage('Ambiente e identificação da conta salvos.')
+    else {
+      const { error: selectionError } = await supabase.from('store_settings').update({
+        active_payment_provider: activeProvider,
+        updated_at: new Date().toISOString(),
+      }).eq('id', true)
+      if (selectionError) setError(selectionError.message)
+      else setMessage('Provedor selecionado e configuração salva.')
+    }
   }
 
   async function submitProviderCredentials(action: 'save' | 'clear') {
     if (!supabase) return
+    if (!activeProvider) {
+      setError('Selecione o provedor que será usado.')
+      return
+    }
     setError(null)
     setMessage(null)
     try {
+      const { error: selectionError } = await supabase.from('store_settings').update({
+        active_payment_provider: activeProvider,
+        updated_at: new Date().toISOString(),
+      }).eq('id', true)
+      if (selectionError) throw selectionError
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError) throw sessionError
       if (!session?.access_token) throw new Error('Sua sessão expirou. Entre novamente.')
@@ -438,7 +473,7 @@ export function AdminControlPage({ module }: Props) {
         },
         body: JSON.stringify({
           action,
-          provider: credentialProvider,
+          provider: activeProvider,
           ...(action === 'save' ? {
             credentials: Object.fromEntries(
               Object.entries(credentialForm).filter(([, value]) => value.trim()),
@@ -449,8 +484,10 @@ export function AdminControlPage({ module }: Props) {
       const result = await response.json() as { error?: string; configured?: boolean }
       if (!response.ok) throw new Error(result.error ?? 'Não foi possível salvar as credenciais.')
       setCredentialForm({ api_token: '', client_id: '', client_secret: '', webhook_secret: '', public_key: '' })
+      setProviderSettings((current) => current.map((provider) => provider.provider === activeProvider
+        ? { ...provider, credentials_configured: action === 'save' }
+        : provider))
       setMessage(action === 'save' ? 'Credenciais criptografadas e salvas no Supabase.' : 'Credenciais removidas.')
-      await load()
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Não foi possível processar as credenciais.')
     }
@@ -493,6 +530,7 @@ export function AdminControlPage({ module }: Props) {
   const [title, subtitle] = titles[module]
   const currentSchedule = parseOpeningSchedule(settings.opening_schedule)
   const hasOpeningSchedule = settings.opening_schedule != null
+  const activeProviderLabel = paymentProviders.find(([value]) => value === activeProvider)?.[1] ?? ''
   const visibleOrders = orders.filter((order) => {
     const matchesStatus = !orderStatus || order.status === orderStatus
     const matchesCustomer = !orderCustomer
@@ -731,12 +769,7 @@ export function AdminControlPage({ module }: Props) {
                       <input type="checkbox" checked={config.enabled} onChange={(event) => updatePaymentMethod(method, { enabled: event.target.checked })} />
                       Habilitar após a integração do provedor
                     </label>
-                    <label>Provedor
-                      <select value={config.provider ?? ''} onChange={(event) => updatePaymentMethod(method, { provider: event.target.value || null })}>
-                        <option value="">Selecione</option>
-                        {paymentProviders.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-                      </select>
-                    </label>
+                    <p className="admin-payment-method__provider">Provedor único: {activeProviderLabel || 'selecione abaixo'}</p>
                     <label>Regra de valor
                       <select value={config.adjustment_type} onChange={(event) => updatePaymentMethod(method, { adjustment_type: event.target.value as PaymentMethodRow['adjustment_type'] })}>
                         <option value="none">Sem alteração</option>
@@ -769,54 +802,55 @@ export function AdminControlPage({ module }: Props) {
           </section>
 
           <section className="admin-panel">
-            <h2>Provedores</h2>
-            <p>Mercado Pago, InfinitePay, PicPay, Next e Nubank. As credenciais cadastradas são criptografadas e nunca retornam ao navegador.</p>
-            <div className="admin-provider-list">
-              {paymentProviders.map(([provider, label]) => {
-                const config = providerSettings.find((item) => item.provider === provider) ?? {
-                  provider,
-                  environment: 'test' as const,
-                  account_reference: null,
-                  credentials_configured: false,
-                }
-                return (
-                  <div className="admin-provider-row" key={provider}>
-                    <strong>{label}</strong>
+            <h2>Provedor de pagamento</h2>
+            <p>Escolha somente um provedor para usar em Pix e cartão. As credenciais são criptografadas e nunca retornam ao navegador.</p>
+            <label className="admin-active-provider">Provedor ativo
+              <select value={activeProvider} onChange={(event) => setActiveProvider(event.target.value)}>
+                <option value="">Selecione um provedor</option>
+                {paymentProviders.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+              </select>
+            </label>
+            {activeProvider && (() => {
+              const providerConfig = providerSettings.find((item) => item.provider === activeProvider)
+              return (
+                <>
+                  <div className="admin-active-provider__settings">
                     <label>Ambiente
-                      <select value={config.environment} onChange={(event) => updateProvider(provider, { environment: event.target.value as PaymentProviderRow['environment'] })}>
+                      <select
+                        value={providerConfig?.environment ?? 'test'}
+                        onChange={(event) => updateProvider(activeProvider, { environment: event.target.value as PaymentProviderRow['environment'] })}
+                      >
                         <option value="test">Testes</option>
                         <option value="production">Produção</option>
                       </select>
                     </label>
                     <label>Identificação da conta
-                      <input value={config.account_reference ?? ''} onChange={(event) => updateProvider(provider, { account_reference: event.target.value })} />
+                      <input
+                        value={providerConfig?.account_reference ?? ''}
+                        onChange={(event) => updateProvider(activeProvider, { account_reference: event.target.value })}
+                      />
                     </label>
-                    <span>{config.credentials_configured ? 'Credenciais cadastradas' : 'Credenciais não cadastradas'}</span>
-                    <button type="button" onClick={() => void saveProviderSettings(provider)}>Salvar dados do provedor</button>
+                    <span>{providerConfig?.credentials_configured ? 'Credenciais cadastradas' : 'Credenciais não cadastradas'}</span>
+                    <button type="button" onClick={() => void saveProviderSettings()}>Salvar provedor selecionado</button>
                   </div>
-                )
-              })}
-            </div>
-            <form className="admin-form admin-provider-credentials" onSubmit={(event) => { event.preventDefault(); void submitProviderCredentials('save') }}>
-              <h3>Credenciais privadas</h3>
-              <label>Provedor
-                <select value={credentialProvider} onChange={(event) => setCredentialProvider(event.target.value)}>
-                  {paymentProviders.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-                </select>
-              </label>
-              <label>Token / chave de API<input type="password" autoComplete="new-password" value={credentialForm.api_token} onChange={(event) => setCredentialForm({ ...credentialForm, api_token: event.target.value })} /></label>
-              <label>Client ID<input type="password" autoComplete="new-password" value={credentialForm.client_id} onChange={(event) => setCredentialForm({ ...credentialForm, client_id: event.target.value })} /></label>
-              <label>Client Secret<input type="password" autoComplete="new-password" value={credentialForm.client_secret} onChange={(event) => setCredentialForm({ ...credentialForm, client_secret: event.target.value })} /></label>
-              <label>Segredo do webhook<input type="password" autoComplete="new-password" value={credentialForm.webhook_secret} onChange={(event) => setCredentialForm({ ...credentialForm, webhook_secret: event.target.value })} /></label>
-              <label>Chave pública<input type="password" autoComplete="new-password" value={credentialForm.public_key} onChange={(event) => setCredentialForm({ ...credentialForm, public_key: event.target.value })} /></label>
-              <div className="admin-form__actions">
-                <button type="submit">Criptografar e salvar credenciais</button>
-                {providerSettings.find((item) => item.provider === credentialProvider)?.credentials_configured && (
-                  <button type="button" className="secondary" onClick={() => void submitProviderCredentials('clear')}>Remover credenciais salvas</button>
-                )}
-              </div>
-            </form>
-            <p className="admin-payment-notice">Esta tela salva configurações e credenciais. A cobrança real por esses provedores só deve ser habilitada após instalar e validar a integração e os webhooks de cada um.</p>
+                  <form className="admin-form admin-provider-credentials" onSubmit={(event) => { event.preventDefault(); void submitProviderCredentials('save') }}>
+                    <h3>Credenciais privadas — {activeProviderLabel}</h3>
+                    <label>Token / chave de API<input type="password" autoComplete="new-password" value={credentialForm.api_token} onChange={(event) => setCredentialForm({ ...credentialForm, api_token: event.target.value })} /></label>
+                    <label>Client ID<input type="password" autoComplete="new-password" value={credentialForm.client_id} onChange={(event) => setCredentialForm({ ...credentialForm, client_id: event.target.value })} /></label>
+                    <label>Client Secret<input type="password" autoComplete="new-password" value={credentialForm.client_secret} onChange={(event) => setCredentialForm({ ...credentialForm, client_secret: event.target.value })} /></label>
+                    <label>Segredo do webhook<input type="password" autoComplete="new-password" value={credentialForm.webhook_secret} onChange={(event) => setCredentialForm({ ...credentialForm, webhook_secret: event.target.value })} /></label>
+                    <label>Chave pública<input type="password" autoComplete="new-password" value={credentialForm.public_key} onChange={(event) => setCredentialForm({ ...credentialForm, public_key: event.target.value })} /></label>
+                    <div className="admin-form__actions">
+                      <button type="submit">Criptografar e salvar credenciais</button>
+                      {providerConfig?.credentials_configured && (
+                        <button type="button" className="secondary" onClick={() => void submitProviderCredentials('clear')}>Remover credenciais salvas</button>
+                      )}
+                    </div>
+                  </form>
+                </>
+              )
+            })()}
+            <p className="admin-payment-notice">A cobrança real só deve ser habilitada após instalar e validar a integração e os webhooks do provedor escolhido.</p>
           </section>
 
           <section className="admin-panel">
