@@ -3,6 +3,7 @@
 .store-header__inner { max-width: 1180px; height: 100%; margin: auto; padding: 0 24px; display: flex; align-items: center; gap: 34px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--green-900); }
 .brand__mark { width: 42px; height: 42px; border-radius: 50%; background: var(--green-700); color: white; display: grid; place-items: center; font-size: 30px; line-height: 1; }
+.brand__logo { width: 48px; height: 48px; object-fit: contain; flex: 0 0 auto; }
 .brand strong, .brand small { display: block; }
 .brand strong { font-size: 18px; }
 .brand small { color: var(--muted); margin-top: 2px; }
@@ -25,6 +26,7 @@
 .category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .category-card { min-height: 125px; background: white; border: 1px solid var(--line); border-radius: 16px; padding: 18px; text-decoration: none; display: flex; align-items: center; gap: 14px; }
 .category-card span { width: 52px; height: 52px; border-radius: 14px; background: var(--green-100); color: var(--green-700); display: grid; place-items: center; font-size: 24px; font-weight: 900; }
+.category-card img { width: 52px; height: 52px; flex: 0 0 52px; border-radius: 14px; object-fit: cover; }
 .product-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 .product-card { background: white; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
 .product-card__image { height: 190px; background: linear-gradient(145deg, #edf7f2, #dcefe6); display: grid; place-items: center; position: relative; }

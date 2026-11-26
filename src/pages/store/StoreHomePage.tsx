@@ -6,12 +6,13 @@ import { appConfig } from '../../config/appConfig'
 import { getCatalog } from '../../services/catalogService'
 import type { Product } from '../../types'
 
-type Category = { id: string; name: string; slug: string; active: boolean; sortOrder: number }
+type Category = { id: string; name: string; slug: string; active: boolean; sortOrder: number; imageUrl?: string }
 
 export function StoreHomePage() {
   const [search, setSearch] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [storeSettings, setStoreSettings] = useState<Record<string, unknown>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,6 +23,7 @@ export function StoreHomePage() {
         if (!active) return
         setCategories(catalog.categories)
         setProducts(catalog.products)
+        setStoreSettings(catalog.settings)
       })
       .catch((requestError) => {
         if (active) setError(requestError instanceof Error ? requestError.message : 'Não foi possível carregar a loja.')
@@ -79,7 +81,9 @@ export function StoreHomePage() {
           <div className="category-grid">
             {categories.filter((category) => category.active).map((category) => (
               <Link key={category.id} className="category-card" to={`/produtos?categoria=${category.slug}`}>
-                <span>{category.name.charAt(0)}</span>
+                {category.imageUrl
+                  ? <img src={category.imageUrl} alt="" />
+                  : <span>{category.name.charAt(0)}</span>}
                 <strong>{category.name}</strong>
               </Link>
             ))}
@@ -103,8 +107,8 @@ export function StoreHomePage() {
         </section>
       </main>
       <footer className="store-footer">
-        <strong>{appConfig.name}</strong>
-        <span>Cuidado, confiança e conveniência.</span>
+        <strong>{String(storeSettings.pharmacy_name ?? appConfig.name)}</strong>
+        <span>{String(storeSettings.institutional_text ?? 'Cuidado, confiança e conveniência.')}</span>
       </footer>
     </div>
   )

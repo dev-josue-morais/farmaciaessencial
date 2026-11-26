@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { getCatalog } from '../../services/catalogService'
 import { supabase } from '../../services/supabase'
 import { formatCurrency } from '../../utils/format'
+import { isWithinOpeningHours } from '../../utils/storeHours'
 import type { Product } from '../../types'
 
 interface CartEntry { productId: string; quantity: number }
@@ -31,6 +32,12 @@ export function CartPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [storeSettings, setStoreSettings] = useState<Record<string, unknown>>({})
+  const [currentTime, setCurrentTime] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem('fe-cart') ?? '[]') as CartEntry[]
@@ -96,6 +103,9 @@ export function CartPage() {
       : Number(neighborhood.delivery_fee)
     : 0
   const total = subtotal + deliveryFee
+  const storeIsOpen = storeSettings.store_open !== false
+    && storeSettings.purchases_enabled !== false
+    && isWithinOpeningHours(storeSettings.opening_schedule, currentTime)
 
   async function checkout() {
     setError(null)
@@ -108,7 +118,7 @@ export function CartPage() {
       setError('Selecione um endereço de entrega.')
       return
     }
-    if (storeSettings.store_open === false || storeSettings.purchases_enabled === false) {
+    if (!storeIsOpen) {
       setError('A loja está temporariamente fechada para novos pedidos.')
       return
     }
@@ -205,10 +215,10 @@ export function CartPage() {
               <div><span>Total</span><strong>{formatCurrency(neighborhood?.available ? total : subtotal)}</strong></div>
               {!user && <Link to="/conta">Entre para finalizar</Link>}
               {addresses.length === 0 && user && <Link to="/conta">Cadastrar endereço</Link>}
-              {(storeSettings.store_open === false || storeSettings.purchases_enabled === false) && (
+              {!storeIsOpen && (
                 <p className="account-message account-message--error">{String(storeSettings.closed_message ?? 'A loja está temporariamente fechada.')}</p>
               )}
-              <button type="button" onClick={checkout} disabled={submitting || !neighborhood?.available || !addressId || storeSettings.store_open === false || storeSettings.purchases_enabled === false}>
+              <button type="button" onClick={checkout} disabled={submitting || !neighborhood?.available || !addressId || !storeIsOpen}>
                 {submitting ? 'Criando pedido...' : 'Finalizar pedido'}
               </button>
             </aside>

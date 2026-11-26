@@ -19,7 +19,7 @@ export function PharmacistPage() {
     if (!supabase) return
     const { data, error: queryError } = await supabase
       .from('orders')
-      .select('*, order_items(*), profiles(full_name, phone)')
+      .select('*, order_items(*, products(name))')
       .order('created_at', { ascending: false })
     if (queryError) setError(queryError.message)
     else setOrders((data ?? []) as Array<Record<string, unknown>>)

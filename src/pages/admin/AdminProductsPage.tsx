@@ -50,6 +50,8 @@ export function AdminProductsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null)
 
   async function load() {
     if (!supabase) return
@@ -64,10 +66,23 @@ export function AdminProductsPage() {
 
   useEffect(() => { void load() }, [])
 
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null)
+      return
+    }
+    const preview = URL.createObjectURL(imageFile)
+    setImagePreview(preview)
+    return () => URL.revokeObjectURL(preview)
+  }, [imageFile])
+
   async function uploadImage(file: File) {
     if (!supabase) throw new Error('Supabase não configurado.')
-    const path = `${crypto.randomUUID()}-${file.name}`
-    const { error: uploadError } = await supabase.storage.from('product-images').upload(path, file, { upsert: false })
+    const extensionByType: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+    const extension = extensionByType[file.type]
+    if (!extension || file.size > 5 * 1024 * 1024) throw new Error('Use uma imagem JPG, PNG ou WEBP de até 5 MB.')
+    const path = `product-images/${crypto.randomUUID()}.${extension}`
+    const { error: uploadError } = await supabase.storage.from('product-images').upload(path, file, { contentType: file.type, upsert: false })
     if (uploadError) throw uploadError
     const { data } = supabase.storage.from('product-images').getPublicUrl(path)
     return data.publicUrl
@@ -124,6 +139,7 @@ export function AdminProductsPage() {
         setMessage(form.id ? 'Produto atualizado.' : 'Produto cadastrado.')
         setForm(emptyForm)
         setImageFile(null)
+        setSavedImageUrl(null)
         await load()
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : 'Não foi possível salvar o produto.')
@@ -131,6 +147,8 @@ export function AdminProductsPage() {
     }
 
     function edit(item: ProductRow) {
+      setImageFile(null)
+      setSavedImageUrl(item.image_url)
       setForm({
         id: item.id,
         name: item.name,
@@ -175,7 +193,10 @@ export function AdminProductsPage() {
             <label>Preço promocional<input type="number" min="0" step="0.01" value={form.promotionalPrice} onChange={(event) => setForm({ ...form, promotionalPrice: event.target.value })} /></label>
             <label>Estoque<input required type="number" min="0" value={form.stock} onChange={(event) => setForm({ ...form, stock: event.target.value })} /></label>
             <label>Estoque mínimo<input required type="number" min="0" value={form.minimumStock} onChange={(event) => setForm({ ...form, minimumStock: event.target.value })} /></label>
-            <label>Foto principal<input type="file" accept="image/*" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /></label>
+            <label className="admin-product-image-field">Foto principal
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} />
+              {(imagePreview || savedImageUrl) && <img className="admin-product-image-preview" src={imagePreview ?? String(savedImageUrl)} alt={`Pré-visualização de ${form.name || 'produto'}`} />}
+            </label>
             <label>Galeria (uma URL por linha)<textarea value={form.gallery} onChange={(event) => setForm({ ...form, gallery: event.target.value })} /></label>
             <label>Classificação<select value={form.regulatoryClass} onChange={(event) => setForm({ ...form, regulatoryClass: event.target.value })}><option value="common">Comum</option><option value="controlled">Controlado</option><option value="prescription">Exige receita</option></select></label>
             <label>Observações internas<textarea value={form.internalNotes} onChange={(event) => setForm({ ...form, internalNotes: event.target.value })} /></label>
@@ -186,7 +207,7 @@ export function AdminProductsPage() {
               <label><input type="checkbox" checked={form.requiresPrescription} onChange={(event) => setForm({ ...form, requiresPrescription: event.target.checked })} /> Exige receita</label>
               <label><input type="checkbox" checked={form.controlled} onChange={(event) => setForm({ ...form, controlled: event.target.checked })} /> Controlado</label>
             </div>
-            <div className="admin-form__actions"><button type="submit">{form.id ? 'Salvar alterações' : 'Cadastrar produto'}</button>{form.id && <button type="button" className="secondary" onClick={() => setForm(emptyForm)}>Cancelar edição</button>}</div>
+            <div className="admin-form__actions"><button type="submit">{form.id ? 'Salvar alterações' : 'Cadastrar produto'}</button>{form.id && <button type="button" className="secondary" onClick={() => { setForm(emptyForm); setImageFile(null); setSavedImageUrl(null) }}>Cancelar edição</button>}</div>
           </form>
         </section>
         <section className="admin-panel" style={{ marginTop: 20 }}>
@@ -194,7 +215,7 @@ export function AdminProductsPage() {
             <div className="admin-table__head admin-table__head--products"><span>Produto</span><span>Código</span><span>Estoque</span><span>Preço</span><span>Status</span><span>Ações</span></div>
             {items.map((item) => (
               <div className="admin-table__row admin-table__row--products" key={item.id}>
-                <span>{item.name}</span><span>{item.code}</span><span>{item.stock}{item.stock <= item.minimum_stock ? ' ⚠' : ''}</span><span>{formatCurrency(item.promotional_price ?? item.price)}</span><span>{item.status}</span>
+                <span className="admin-product-cell">{item.image_url && <img src={item.image_url} alt="" />}{item.name}</span><span>{item.code}</span><span>{item.stock}{item.stock <= item.minimum_stock ? ' ⚠' : ''}</span><span>{formatCurrency(item.promotional_price ?? item.price)}</span><span>{item.status}</span>
                 <span><button type="button" onClick={() => edit(item)}>Editar</button><button type="button" onClick={() => void toggleStatus(item)}>{item.status === 'active' ? 'Desativar' : 'Ativar'}</button></span>
               </div>
             ))}
