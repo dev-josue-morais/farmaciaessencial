@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../../services/supabase'
 import { formatCurrency } from '../../utils/format'
 
@@ -37,7 +37,7 @@ export function AdminControlPage({ module }: Props) {
   const [neighborhoodForm, setNeighborhoodForm] = useState({ id: '', name: '', fee: '', minimum: '', estimated: '', available: true, observations: '' })
   const [stockForm, setStockForm] = useState({ productId: '', delta: '', reason: '' })
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!supabase) return
     setError(null)
     if (module === 'categories') {
@@ -77,9 +77,9 @@ export function AdminControlPage({ module }: Props) {
       if (paymentError) setError(paymentError.message)
       else setPayments((paymentData ?? []) as Array<Record<string, unknown>>)
     }
-  }
+  }, [module])
 
-  useEffect(() => { void load() }, [module])
+  useEffect(() => { void load() }, [load])
 
   async function saveCategory(event: FormEvent) {
     event.preventDefault()

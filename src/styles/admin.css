@@ -1,6 +1,7 @@
 .admin-layout { min-height: 100vh; background: #f3f6f4; display: grid; grid-template-columns: 248px 1fr; }
 .admin-sidebar { background: #12382e; color: white; padding: 22px 14px; display: flex; flex-direction: column; position: sticky; height: 100vh; top: 0; }
 .admin-sidebar__brand { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 10px; }
+.admin-sidebar__toggle { display: none; }
 .admin-sidebar__brand span { width: 34px; height: 34px; border-radius: 50%; background: #31b98a; display: grid; place-items: center; font-weight: 900; }
 .admin-sidebar nav { display: grid; gap: 5px; margin-top: 20px; }
 .admin-sidebar nav a, .admin-sidebar__store { color: #bdd0c7; text-decoration: none; border-radius: 9px; padding: 12px 14px; font-weight: 700; }
@@ -49,15 +50,40 @@
 .admin-table__head--5, .admin-table__row--5 { grid-template-columns: repeat(5, 1fr); }
 .admin-table__row select { margin: 8px 12px; }
 @media (max-width: 900px) {
-  .admin-layout { grid-template-columns: 78px 1fr; }
-  .admin-sidebar { padding: 14px 8px; }
-  .admin-sidebar__brand strong, .admin-sidebar nav a { font-size: 0; }
-  .admin-sidebar nav a { height: 48px; padding: 10px; }
-  .admin-sidebar__store { font-size: 0; height: 48px; }
-  .metric-grid { grid-template-columns: 1fr 1fr; }
-  .admin-table { overflow-x: auto; }
-  .admin-table__head { min-width: 720px; }
+  .admin-layout { grid-template-columns: minmax(0, 1fr); }
+  .admin-sidebar { position: relative; z-index: 20; height: auto; min-height: 64px; padding: 10px 16px; }
+  .admin-sidebar__brand { width: 100%; height: 48px; padding: 0; }
+  .admin-sidebar__brand strong { font-size: 16px; }
+  .admin-sidebar__toggle { width: 44px; height: 44px; margin-left: auto; border: 1px solid #356b5c; border-radius: 9px; background: transparent; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; }
+  .admin-sidebar__toggle span { display: block; width: 20px; height: 2px; border-radius: 2px; background: white; }
+  .admin-sidebar nav { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 12px; }
+  .admin-sidebar--open nav { display: grid; }
+  .admin-sidebar nav a { min-height: 44px; padding: 12px; font-size: 14px; }
+  .admin-sidebar__store { display: none; margin: 8px 0 0; min-height: 44px; padding: 12px; }
+  .admin-sidebar--open .admin-sidebar__store { display: block; }
+  .admin-topbar { height: 66px; padding: 0 20px; }
+  .admin-config-warning { margin: 16px 20px 0; }
+  .admin-content { padding: 24px 20px; }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-table { overflow-x: auto; overscroll-behavior-x: contain; }
+  .admin-table__head, .admin-table__row { min-width: 720px; }
   .admin-table__empty { min-width: 720px; }
   .admin-form { grid-template-columns: 1fr; }
   .admin-checks { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .admin-sidebar { padding: 8px 12px; }
+  .admin-topbar { padding: 0 14px; }
+  .admin-config-warning { margin: 12px 14px 0; }
+  .admin-content { padding: 20px 14px; }
+  .admin-page-heading { align-items: start; }
+  .admin-page-heading h1 { font-size: 28px; }
+  .admin-panel { padding: 14px; }
+  .metric-grid { gap: 9px; }
+  .metric-grid article { min-height: 100px; padding: 13px; }
+  .metric-grid article strong { font-size: 27px; }
+  .status-grid { grid-template-columns: 1fr 1fr; }
+  .admin-form__actions { flex-wrap: wrap; }
 }
