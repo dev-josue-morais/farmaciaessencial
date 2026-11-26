@@ -6,6 +6,8 @@ export interface Category {
   slug: string
   active: boolean
   sortOrder: number
+  description?: string
+  imageUrl?: string
 }
 
 export interface Product {
@@ -23,6 +25,10 @@ export interface Product {
   featured: boolean
   requiresPrescription: boolean
   controlled: boolean
+  minimumStock?: number
+  availableForSale?: boolean
+  regulatoryClass?: string
+  internalNotes?: string
 }
 
 export interface CartItem {

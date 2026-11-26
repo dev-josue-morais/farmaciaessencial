@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AdminPlaceholderPage } from './pages/admin/AdminPlaceholderPage'
 import { RequireAdmin } from './components/admin/RequireAdmin'
 import { DashboardPage } from './pages/admin/DashboardPage'
 import { AccountPage } from './pages/store/AccountPage'
@@ -8,6 +7,7 @@ import { CatalogPage } from './pages/store/CatalogPage'
 import { StoreHomePage } from './pages/store/StoreHomePage'
 import { PharmacistPage } from './pages/admin/PharmacistPage'
 import { AdminProductsPage } from './pages/admin/AdminProductsPage'
+import { AdminControlPage } from './pages/admin/AdminControlPage'
 
 export default function App() {
   return (
@@ -25,48 +25,23 @@ export default function App() {
         />
         <Route
           path="categorias"
-          element={
-            <AdminPlaceholderPage
-              title="Categorias"
-              description="Organize categorias, ordem de exibição e disponibilidade na loja."
-              action="Nova categoria"
-              fields={['Categoria', 'Ordem', 'Status']}
-            />
-          }
+          element={<AdminControlPage module="categories" />}
         />
         <Route
           path="pedidos"
-          element={
-            <AdminPlaceholderPage
-              title="Pedidos"
-              description="Consulte pedidos, cliente, entrega, pagamento, itens e histórico de alterações."
-              action="Atualizar lista"
-              fields={['Pedido', 'Cliente', 'Pagamento', 'Entrega', 'Status', 'Total']}
-            />
-          }
+          element={<AdminControlPage module="orders" />}
         />
         <Route
           path="entregas"
-          element={
-            <AdminPlaceholderPage
-              title="Bairros e entregas"
-              description="Configure bairros atendidos, taxa independente, mínimo da compra e prazo."
-              action="Novo bairro"
-              fields={['Bairro', 'Taxa', 'Mínimo', 'Prazo', 'Disponibilidade']}
-            />
-          }
+          element={<AdminControlPage module="neighborhoods" />}
         />
         <Route
           path="configuracoes"
-          element={
-            <AdminPlaceholderPage
-              title="Configurações"
-              description="Regras comerciais e integrações externas devem ser definidas no backend protegido."
-              action="Adicionar configuração"
-              fields={['Configuração', 'Valor', 'Status']}
-            />
-          }
+          element={<AdminControlPage module="settings" />}
         />
+        <Route path="estoque" element={<AdminControlPage module="stock" />} />
+        <Route path="usuarios" element={<AdminControlPage module="users" />} />
+        <Route path="pagamentos" element={<AdminControlPage module="payments" />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

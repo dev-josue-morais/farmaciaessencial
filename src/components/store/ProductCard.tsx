@@ -12,7 +12,9 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
   return (
     <article className="product-card">
       <div className="product-card__image" aria-label={`Imagem de ${product.name}`}>
-        <span>{product.name.charAt(0)}</span>
+        {product.imageUrl
+          ? <img src={product.imageUrl} alt={product.name} />
+          : <span>{product.name.charAt(0)}</span>}
         {product.promotionalPrice && <b>Oferta</b>}
       </div>
       <div className="product-card__body">

@@ -4,7 +4,6 @@ import { useAuth } from '../../auth/AuthContext'
 import { supabase } from '../../services/supabase'
 
 const statuses = [
-  ['payment_approved', 'Pagamento aprovado'],
   ['preparing', 'Em preparação'],
   ['ready', 'Pronto para entrega'],
   ['out_for_delivery', 'Saiu para entrega'],
@@ -30,10 +29,11 @@ export function PharmacistPage() {
 
   async function updateStatus(orderId: string, status: string) {
     if (!supabase) return
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', orderId)
+    const { error: updateError } = await supabase.rpc('update_order_status', {
+      p_order_id: orderId,
+      p_status: status,
+      p_notes: 'Atualização pelo painel operacional',
+    })
     if (updateError) setError(updateError.message)
     else await load()
   }

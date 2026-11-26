@@ -30,13 +30,18 @@ export function CartPage() {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [storeSettings, setStoreSettings] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem('fe-cart') ?? '[]') as CartEntry[]
     setCart(stored.filter((item) => item.quantity > 0))
     let active = true
     getCatalog()
-      .then((catalog) => active && setProducts(catalog.products))
+      .then((catalog) => {
+        if (!active) return
+        setProducts(catalog.products)
+        setStoreSettings(catalog.settings)
+      })
       .catch((requestError) => active && setError(requestError instanceof Error ? requestError.message : 'Erro ao validar o carrinho.'))
       .finally(() => active && setLoading(false))
     return () => { active = false }
@@ -83,9 +88,13 @@ export function CartPage() {
   const subtotal = lines.reduce((sum, line) => sum + (line.product.promotionalPrice ?? line.product.price) * line.quantity, 0)
   const address = addresses.find((item) => item.id === addressId)
   const neighborhood = address?.neighborhoods
-  const deliveryFee = neighborhood?.available ? Number(neighborhood.delivery_fee) : 0
   const minimumOrder = neighborhood ? Number(neighborhood.minimum_order) : 0
-  const enough = !neighborhood || subtotal >= minimumOrder
+  const enoughForFreeDelivery = !neighborhood || subtotal >= minimumOrder
+  const deliveryFee = neighborhood?.available
+    ? enoughForFreeDelivery
+      ? 0
+      : Number(neighborhood.delivery_fee)
+    : 0
   const total = subtotal + deliveryFee
 
   async function checkout() {
@@ -99,12 +108,12 @@ export function CartPage() {
       setError('Selecione um endereço de entrega.')
       return
     }
-    if (!neighborhood?.available) {
-      setError('O bairro selecionado não está atendido.')
+    if (storeSettings.store_open === false || storeSettings.purchases_enabled === false) {
+      setError('A loja está temporariamente fechada para novos pedidos.')
       return
     }
-    if (!enough) {
-      setError(`Faltam ${formatCurrency(minimumOrder - subtotal)} para atingir o mínimo de compra.`)
+    if (!neighborhood?.available) {
+      setError('O bairro selecionado não está atendido.')
       return
     }
     if (!supabase) return
@@ -180,11 +189,11 @@ export function CartPage() {
                 </select>
               </label>
               {neighborhood && (
-                <p className={neighborhood.available && enough ? 'account-message--success' : 'account-message--error'}>
+                <p className={neighborhood.available ? 'account-message--success' : 'account-message--error'}>
                   {neighborhood.available
-                    ? enough
-                      ? `Entrega em ${neighborhood.name}: ${formatCurrency(deliveryFee)}`
-                      : `Faltam ${formatCurrency(minimumOrder - subtotal)} para o mínimo de compra.`
+                    ? enoughForFreeDelivery
+                      ? `Entrega em ${neighborhood.name}: taxa isenta.`
+                      : `Entrega em ${neighborhood.name}: taxa de ${formatCurrency(deliveryFee)}. A compra não é bloqueada.`
                     : 'Bairro indisponível para entrega.'}
                 </p>
               )}
@@ -196,7 +205,10 @@ export function CartPage() {
               <div><span>Total</span><strong>{formatCurrency(neighborhood?.available ? total : subtotal)}</strong></div>
               {!user && <Link to="/conta">Entre para finalizar</Link>}
               {addresses.length === 0 && user && <Link to="/conta">Cadastrar endereço</Link>}
-              <button type="button" onClick={checkout} disabled={submitting || !neighborhood?.available || !enough || !addressId}>
+              {(storeSettings.store_open === false || storeSettings.purchases_enabled === false) && (
+                <p className="account-message account-message--error">{String(storeSettings.closed_message ?? 'A loja está temporariamente fechada.')}</p>
+              )}
+              <button type="button" onClick={checkout} disabled={submitting || !neighborhood?.available || !addressId || storeSettings.store_open === false || storeSettings.purchases_enabled === false}>
                 {submitting ? 'Criando pedido...' : 'Finalizar pedido'}
               </button>
             </aside>

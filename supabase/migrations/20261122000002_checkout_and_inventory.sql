@@ -1,4 +1,6 @@
 alter table public.addresses add column if not exists is_primary boolean not null default false;
+alter table public.products
+  add column if not exists available_for_sale boolean not null default true;
 alter table public.orders
   add column if not exists idempotency_key text,
   add column if not exists payment_status text not null default 'pending',
@@ -46,9 +48,15 @@ declare
   v_total numeric(12,2);
   v_quantity integer;
   v_product_id uuid;
+  v_store record;
 begin
   if v_user is null then
     raise exception 'Authentication required';
+  end if;
+  select * into v_store from public.store_settings where id = true;
+  if coalesce(v_store.store_open, true) = false
+     or coalesce(v_store.purchases_enabled, true) = false then
+    raise exception 'Purchases are temporarily unavailable';
   end if;
   if p_idempotency_key is null or btrim(p_idempotency_key) = '' then
     raise exception 'Idempotency key required';
@@ -85,7 +93,9 @@ begin
 
     select * into v_product
     from public.products
-    where id = v_product_id and status = 'active'
+    where id = v_product_id
+      and status = 'active'
+      and available_for_sale = true
     for update;
     if v_product.id is null then raise exception 'Product unavailable';
     end if;
@@ -100,10 +110,10 @@ begin
   end loop;
 
   if v_subtotal < v_address.minimum_order then
-    raise exception 'Minimum order of R$ % is required', v_address.minimum_order;
+    v_delivery_fee := v_address.delivery_fee;
+  else
+    v_delivery_fee := 0;
   end if;
-
-  v_delivery_fee := v_address.delivery_fee;
   v_total := v_subtotal + v_delivery_fee;
 
   insert into public.orders (

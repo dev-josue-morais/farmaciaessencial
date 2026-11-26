@@ -34,6 +34,20 @@
 .admin-table__row { min-height: 56px; display: grid; grid-template-columns: repeat(6, 1fr); align-items: center; border-top: 1px solid #e4ebe7; }
 .admin-table__row span, .admin-table__row button { padding: 8px 12px; }
 .admin-table__row button { border: 0; background: var(--green-100); color: var(--green-900); border-radius: 8px; margin: 6px; font-weight: 800; }
+.admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-form label { display: grid; gap: 7px; color: #53665d; font-size: 13px; font-weight: 800; }
+.admin-form input, .admin-form textarea, .admin-form select { width: 100%; box-sizing: border-box; border: 1px solid #d9e4de; border-radius: 8px; background: white; color: #17372f; padding: 10px 12px; }
+.admin-form textarea { min-height: 86px; resize: vertical; }
+.admin-checks { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.admin-checks label { display: flex; align-items: center; gap: 8px; }
+.admin-checks input { width: auto; }
+.admin-form__actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+.admin-form__actions button, .admin-table__row button { min-height: 38px; border: 0; border-radius: 8px; background: var(--green-700); color: white; padding: 8px 12px; font-weight: 800; }
+.admin-form__actions button.secondary { background: #edf3f0; color: #456057; }
+.admin-table__head--products, .admin-table__row--products { grid-template-columns: 1.5fr repeat(5, 1fr); }
+.admin-table__head--4, .admin-table__row--4 { grid-template-columns: repeat(4, 1fr); }
+.admin-table__head--5, .admin-table__row--5 { grid-template-columns: repeat(5, 1fr); }
+.admin-table__row select { margin: 8px 12px; }
 @media (max-width: 900px) {
   .admin-layout { grid-template-columns: 78px 1fr; }
   .admin-sidebar { padding: 14px 8px; }
@@ -44,4 +58,6 @@
   .admin-table { overflow-x: auto; }
   .admin-table__head { min-width: 720px; }
   .admin-table__empty { min-width: 720px; }
+  .admin-form { grid-template-columns: 1fr; }
+  .admin-checks { grid-template-columns: 1fr; }
 }
